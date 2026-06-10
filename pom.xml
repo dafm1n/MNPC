@@ -10,12 +10,12 @@
     <packaging>jar</packaging>
 
     <name>MNPC</name>
-    <description>High-performance packet-based NPC engine for PaperMC 1.21.6 (Mojang mappings, zero external NPC libraries).</description>
+    <description>High-performance packet-based NPC engine for PaperMC 26.1.2 (Mojang mappings, zero external NPC libraries).</description>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>25</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <paper.version>1.21.6-R0.1-SNAPSHOT</paper.version>
+        <paper.version>26.1.2.build.69-stable</paper.version>
     </properties>
 
     <repositories>
@@ -38,15 +38,15 @@
             Mojang-mapped Paper server (NMS). Not published to a public repository:
             install it locally once via the provided script (see README.md):
 
-                java -Dpaperclip.patchonly=true -jar paper-1.21.6-48.jar
-                mvn install:install-file -Dfile=versions/1.21.6/paper-1.21.6.jar \
+                java -Dpaperclip.patchonly=true -jar paper-26.1.2-69.jar
+                mvn install:install-file -Dfile=versions/26.1.2/paper-26.1.2.jar \
                     -DgroupId=io.papermc.paper -DartifactId=paper-server-mojang \
-                    -Dversion=1.21.6 -Dpackaging=jar
+                    -Dversion=26.1.2 -Dpackaging=jar
         -->
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-server-mojang</artifactId>
-            <version>1.21.6</version>
+            <version>26.1.2</version>
             <scope>provided</scope>
         </dependency>
 
@@ -54,13 +54,13 @@
         <dependency>
             <groupId>com.mojang</groupId>
             <artifactId>authlib</artifactId>
-            <version>6.0.58</version>
+            <version>7.0.63</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.mojang</groupId>
             <artifactId>datafixerupper</artifactId>
-            <version>8.0.16</version>
+            <version>9.0.19</version>
             <scope>provided</scope>
         </dependency>
 
@@ -68,13 +68,13 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-buffer</artifactId>
-            <version>4.1.118.Final</version>
+            <version>4.2.7.Final</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport</artifactId>
-            <version>4.1.118.Final</version>
+            <version>4.2.7.Final</version>
             <scope>provided</scope>
         </dependency>
 

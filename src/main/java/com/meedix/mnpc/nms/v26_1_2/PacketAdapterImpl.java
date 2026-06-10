@@ -1,11 +1,13 @@
-package com.meedix.mnpc.nms.v1_21_6;
+package com.meedix.mnpc.nms.v26_1_2;
 
 import com.meedix.mnpc.api.Npc;
 import com.meedix.mnpc.api.NpcAnimation;
 import com.meedix.mnpc.api.NpcEquipmentSlot;
 import com.meedix.mnpc.api.skin.Skin;
 import com.mojang.authlib.GameProfile;
+import com.google.common.collect.ImmutableMultimap;
 import com.mojang.authlib.properties.Property;
+import com.mojang.authlib.properties.PropertyMap;
 import io.netty.buffer.Unpooled;
 import io.papermc.paper.adventure.PaperAdventure;
 import net.minecraft.network.FriendlyByteBuf;
@@ -28,7 +30,6 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
@@ -45,7 +46,7 @@ import java.util.UUID;
 import com.meedix.mnpc.nms.PacketAdapter;
 
 /**
- * {@link PacketAdapter} implementation for Minecraft 1.21.6 (Mojang mappings,
+ * {@link PacketAdapter} implementation for Minecraft 26.1.2 (Mojang mappings,
  * Paper). All packets are written directly to the player's
  * {@link net.minecraft.network.Connection} obtained from
  * {@link net.minecraft.server.network.ServerGamePacketListenerImpl}.
@@ -63,15 +64,20 @@ import com.meedix.mnpc.nms.PacketAdapter;
  */
 public final class PacketAdapterImpl implements PacketAdapter {
 
-    /** SynchedEntityData index of the player "displayed skin parts" byte (1.21.6). */
-    private static final int DATA_PLAYER_SKIN_PARTS = 17;
+    /**
+     * SynchedEntityData index of the player "displayed skin parts" byte.
+     * Resolved from the public {@link net.minecraft.world.entity.Avatar}
+     * accessor, so it survives index shifts between versions.
+     */
+    private static final int DATA_PLAYER_SKIN_PARTS =
+            net.minecraft.world.entity.Avatar.DATA_PLAYER_MODE_CUSTOMISATION.id();
     /** All skin layers enabled (cape, jacket, sleeves, pants, hat). */
     private static final byte SKIN_PARTS_ALL = 0x7F;
-    /** SynchedEntityData index of the display entity billboard byte (1.21.6). */
+    /** SynchedEntityData index of the display entity billboard byte (26.1.2, verified). */
     private static final int DATA_DISPLAY_BILLBOARD = 15;
     /** Billboard constraint CENTER: the display always faces the viewer. */
     private static final byte BILLBOARD_CENTER = 3;
-    /** SynchedEntityData index of the text display text component (1.21.6). */
+    /** SynchedEntityData index of the text display text component (26.1.2, verified). */
     private static final int DATA_TEXT_DISPLAY_TEXT = 23;
 
     /** ClientboundAnimatePacket action: swing main arm. */
@@ -85,7 +91,8 @@ public final class PacketAdapterImpl implements PacketAdapter {
 
     @Override
     public int nextEntityId() {
-        return Bukkit.getUnsafe().nextEntityId();
+        // NMS allocator (atomic counter) — avoids the deprecated Bukkit.getUnsafe().
+        return net.minecraft.world.entity.Entity.nextEntityId();
     }
 
     @Override
@@ -218,13 +225,15 @@ public final class PacketAdapterImpl implements PacketAdapter {
      * property when present.
      */
     private GameProfile buildProfile(Npc npc) {
-        GameProfile profile = new GameProfile(npc.getId(), npc.getName());
         Skin skin = npc.getSkin().orElse(null);
-        if (skin != null) {
-            profile.getProperties().put("textures",
-                    new Property("textures", skin.texture(), skin.signature()));
+        if (skin == null) {
+            return new GameProfile(npc.getId(), npc.getName());
         }
-        return profile;
+        // GameProfile is a record in authlib 7.x: properties are supplied
+        // through the constructor instead of being mutated afterwards.
+        PropertyMap properties = new PropertyMap(ImmutableMultimap.of("textures",
+                new Property("textures", skin.texture(), skin.signature())));
+        return new GameProfile(npc.getId(), npc.getName(), properties);
     }
 
     /** Builds the entity-data packet carrying billboard mode and text. */

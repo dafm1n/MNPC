@@ -1,0 +1,15 @@
+name: MNPC
+version: '${project.version}'
+main: com.meedix.mnpc.MnpcPlugin
+api-version: '1.21'
+author: Meedix
+description: High-performance packet-based NPC engine for Paper 1.21.6.
+commands:
+  mnpc:
+    description: Manage MNPC NPCs.
+    usage: /mnpc <create|remove|skin|tphere|lookat|anim|equiphand|hologram|follow|unfollow|list>
+    permission: mnpc.admin
+permissions:
+  mnpc.admin:
+    description: Allows managing NPCs.
+    default: op

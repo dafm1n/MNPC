@@ -1,0 +1,8 @@
+# MNPC configuration
+
+# Default automatic visibility radius (blocks) for newly created NPCs.
+# Players inside the radius see the NPC, players outside do not.
+view-radius: 48.0
+
+# How often all NPCs are persisted to npcs.yml (seconds).
+autosave-interval-seconds: 300

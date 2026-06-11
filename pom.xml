@@ -4,7 +4,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.meedix</groupId>
+    <parent>
+        <groupId>club.meedix</groupId>
+        <artifactId>meedix-core-parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
     <artifactId>mnpc</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
@@ -13,20 +18,14 @@
     <description>High-performance packet-based NPC engine for PaperMC 26.1.2 (Mojang mappings, zero external NPC libraries).</description>
 
     <properties>
-        <java.version>25</java.version>
+        <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <paper.version>26.1.2.build.69-stable</paper.version>
+        <!-- paper-api 26.1.2 requires Adventure 4.26.x -->
+        <adventure.version>4.26.1</adventure.version>
     </properties>
 
-    <repositories>
-        <repository>
-            <id>papermc</id>
-            <url>https://repo.papermc.io/repository/maven-public/</url>
-        </repository>
-    </repositories>
-
     <dependencies>
-        <!-- Paper API (Bukkit/Paper plugin API) -->
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
@@ -34,15 +33,7 @@
             <scope>provided</scope>
         </dependency>
 
-        <!--
-            Mojang-mapped Paper server (NMS). Not published to a public repository:
-            install it locally once via the provided script (see README.md):
-
-                java -Dpaperclip.patchonly=true -jar paper-26.1.2-69.jar
-                mvn install:install-file -Dfile=versions/26.1.2/paper-26.1.2.jar \
-                    -DgroupId=io.papermc.paper -DartifactId=paper-server-mojang \
-                    -Dversion=26.1.2 -Dpackaging=jar
-        -->
+        <!-- Mojang-mapped Paper server (NMS). Installed locally. -->
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-server-mojang</artifactId>
@@ -50,7 +41,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Mojang libraries shipped with the server (provided at runtime) -->
         <dependency>
             <groupId>com.mojang</groupId>
             <artifactId>authlib</artifactId>
@@ -64,7 +54,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Netty (bundled with the server, needed for FriendlyByteBuf usage) -->
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-buffer</artifactId>
@@ -78,7 +67,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Gson (bundled with the server, used by the Mojang skin fetcher) -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
@@ -99,7 +87,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
                 <configuration>
                     <release>${java.version}</release>
                 </configuration>
@@ -107,15 +94,9 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.4.2</version>
                 <configuration>
                     <archive>
                         <manifestEntries>
-                            <!--
-                                The plugin is compiled against Mojang mappings.
-                                Paper 1.20.5+ remaps plugins to Spigot mappings by default;
-                                this entry tells Paper to skip remapping entirely.
-                            -->
                             <paperweight-mappings-namespace>mojang</paperweight-mappings-namespace>
                         </manifestEntries>
                     </archive>

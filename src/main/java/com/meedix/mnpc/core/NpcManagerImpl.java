@@ -7,9 +7,11 @@ import com.meedix.mnpc.core.visibility.VisibilityService;
 import com.meedix.mnpc.nms.PacketAdapter;
 import com.meedix.mnpc.skin.SkinService;
 import com.meedix.mnpc.storage.NpcStorage;
+import com.meedix.mnpc.trait.HologramTrait;
 import org.bukkit.Location;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -60,7 +62,21 @@ public final class NpcManagerImpl implements NpcManager {
         NpcImpl npc = new NpcImpl(UUID.randomUUID(), name, location, skin,
                 defaultViewRadius, adapter, visibility);
         registry.register(npc);
+        addVanillaHologram(npc);
         return npc;
+    }
+
+    private void addVanillaHologram(Npc npc) {
+        if (!npc.getName().equalsIgnoreCase("Vanilla")) {
+            return;
+        }
+        npc.addTrait(new HologramTrait(List.of(
+                "&f &f &f &f &#D3FFA9ᴠ&#D0FFA5ᴀ&#CCFFA1ɴ&#C9FF9Dɪ&#C5FF99ʟ&#C2FF95ʟ&#BEFF91ᴀ &#61E25F⏻ &f &f &f &f",
+                "&#FFE4E4&m        ",
+                "&#E6FFC6Версия: &#CEFF8F26.1.2",
+                "&#E6FFC6     Онлайн: &#CEFF8F%bungee_vanilla%/150     ",
+                "&#FCD05C→ жми ←",
+                "&f")));
     }
 
     /**

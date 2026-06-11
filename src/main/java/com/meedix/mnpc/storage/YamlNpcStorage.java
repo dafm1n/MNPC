@@ -5,6 +5,7 @@ import com.meedix.mnpc.api.NpcEquipmentSlot;
 import com.meedix.mnpc.api.skin.Skin;
 import com.meedix.mnpc.api.trait.Trait;
 import com.meedix.mnpc.core.NpcManagerImpl;
+import com.meedix.mnpc.trait.HologramTrait;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -16,6 +17,7 @@ import org.bukkit.plugin.Plugin;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -102,6 +104,7 @@ public final class YamlNpcStorage implements NpcStorage {
         Npc npc = manager.restoreNpc(UUID.fromString(key),
                 section.getString("name", "NPC"), location, skin,
                 section.getDouble("view-radius", 48.0));
+        npc.setNameVisible(section.getBoolean("name-visible", true));
 
         ConfigurationSection equipment = section.getConfigurationSection("equipment");
         if (equipment != null) {
@@ -124,6 +127,17 @@ public final class YamlNpcStorage implements NpcStorage {
                         "Skipping unknown trait '" + traitId + "' of NPC " + key));
             }
         }
+
+        // Auto-add hologram for Vanilla NPCs that don't have one yet (upgrade path)
+        if (npc.getName().equalsIgnoreCase("Vanilla") && npc.getTrait(HologramTrait.class).isEmpty()) {
+            npc.addTrait(new HologramTrait(List.of(
+                    "&f &f &f &f &#D3FFA9ᴠ&#D0FFA5ᴀ&#CCFFA1ɴ&#C9FF9Dɪ&#C5FF99ʟ&#C2FF95ʟ&#BEFF91ᴀ &#61E25F⏻ &f &f &f &f",
+                    "&#FFE4E4&m        ",
+                    "&#E6FFC6Версия: &#CEFF8F26.1.2",
+                    "&#E6FFC6     Онлайн: &#CEFF8F%bungee_vanilla%/150     ",
+                    "&#FCD05C→ жми ←",
+                    "&f")));
+        }
     }
 
     private void writeNpc(ConfigurationSection section, Npc npc) {
@@ -136,6 +150,7 @@ public final class YamlNpcStorage implements NpcStorage {
         section.set("location.yaw", (double) location.getYaw());
         section.set("location.pitch", (double) location.getPitch());
         section.set("view-radius", npc.getViewRadius());
+        section.set("name-visible", npc.isNameVisible());
         npc.getSkin().ifPresent(skin -> {
             section.set("skin.texture", skin.texture());
             section.set("skin.signature", skin.signature());

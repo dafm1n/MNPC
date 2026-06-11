@@ -7,7 +7,8 @@ description: High-performance packet-based NPC engine for Paper 26.1.2.
 commands:
   mnpc:
     description: Manage MNPC NPCs.
-    usage: /mnpc <create|remove|skin|tphere|lookat|anim|equiphand|hologram|follow|unfollow|list>
+    usage: /npc help
+    aliases: [npc]
     permission: mnpc.admin
 permissions:
   mnpc.admin:

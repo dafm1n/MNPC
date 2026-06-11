@@ -147,6 +147,19 @@ public interface Npc {
     /** @param radius the new automatic visibility radius in blocks */
     void setViewRadius(double radius);
 
+    /** @return whether the name tag above the NPC's head is visible. */
+    boolean isNameVisible();
+
+    /**
+     * Shows or hides the name tag rendered above the NPC's head. Hiding is
+     * implemented with a client-side scoreboard team, so no server-side
+     * scoreboard state is touched. The change applies instantly to all
+     * current viewers and is persisted to storage.
+     *
+     * @param visible {@code true} to show the name tag, {@code false} to hide it
+     */
+    void setNameVisible(boolean visible);
+
     /** @return whether the NPC has been removed from its manager. */
     boolean isRemoved();
 }

@@ -40,6 +40,7 @@ public final class NpcImpl implements Npc {
     private volatile Location location;
     private volatile Skin skin;
     private volatile double viewRadius;
+    private volatile boolean nameVisible = true;
     private volatile boolean removed;
 
     private final Map<NpcEquipmentSlot, ItemStack> equipment = new EnumMap<>(NpcEquipmentSlot.class);
@@ -254,6 +255,22 @@ public final class NpcImpl implements Npc {
     /** @return the live trait list (engine internal). */
     List<Trait> traitList() {
         return traits;
+    }
+
+    @Override
+    public boolean isNameVisible() {
+        return nameVisible;
+    }
+
+    @Override
+    public void setNameVisible(boolean visible) {
+        if (this.nameVisible == visible) {
+            return;
+        }
+        this.nameVisible = visible;
+        if (!viewers.isEmpty()) {
+            adapter.sendNameTagVisibility(List.copyOf(viewers), this, visible);
+        }
     }
 
     /** Marks this NPC as removed and detaches all traits. */

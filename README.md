@@ -41,7 +41,7 @@ com.meedix.mnpc
 ├── skin/SkinService            — асинхронный Mojang API + кэш
 ├── storage/                    — NpcStorage, YamlNpcStorage, TraitRegistry
 ├── trait/                      — LookAtPlayerTrait, HologramTrait, FollowTrait
-└── command/MnpcCommand         — /mnpc (живой пример использования API)
+└── command/MnpcCommand         — /npc (живой пример использования API)
 ```
 
 ## Сборка
@@ -104,10 +104,17 @@ public void onNpcClick(NpcInteractEvent event) {
 npcManager.removeNpc(npc);
 ```
 
-## Команда `/mnpc` (permission `mnpc.admin`)
+## Команда `/npc` (алиас `/mnpc`, permission `mnpc.admin`)
+
+`/npc help` — красивое кликабельное меню всех команд.
 
 `create`, `remove`, `skin`, `tphere`, `lookat`, `anim`, `equiphand`,
-`hologram` (строки через `|`), `follow`, `unfollow`, `list`.
+`hologram` (строки через `|`), `follow`, `unfollow`,
+`togglename` (показать/скрыть имя над головой), `list`, `help`.
+
+Скрытие имени реализовано клиентской scoreboard-командой
+(`team` пакет с `nameTagVisibility: never`) — серверный scoreboard
+не затрагивается, состояние сохраняется в `npcs.yml`.
 
 ## Производительность
 

@@ -85,6 +85,18 @@ public interface PacketAdapter {
     void sendEquipment(Collection<Player> viewers, Npc npc);
 
     /**
+     * Shows or hides the NPC's name tag for the given viewers using a
+     * client-side scoreboard team whose name-tag visibility is set to
+     * {@code never}. Sending only packets keeps the real server scoreboard
+     * untouched.
+     *
+     * @param viewers the players to update
+     * @param npc     the NPC whose name tag changes
+     * @param visible {@code true} to show the name tag, {@code false} to hide it
+     */
+    void sendNameTagVisibility(Collection<Player> viewers, Npc npc, boolean visible);
+
+    /**
      * Spawns a client-side text display (used for holograms).
      *
      * @param viewer   the receiving player

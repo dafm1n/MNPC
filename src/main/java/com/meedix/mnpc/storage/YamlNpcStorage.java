@@ -102,6 +102,7 @@ public final class YamlNpcStorage implements NpcStorage {
         Npc npc = manager.restoreNpc(UUID.fromString(key),
                 section.getString("name", "NPC"), location, skin,
                 section.getDouble("view-radius", 48.0));
+        npc.setNameVisible(section.getBoolean("name-visible", true));
 
         ConfigurationSection equipment = section.getConfigurationSection("equipment");
         if (equipment != null) {
@@ -136,6 +137,7 @@ public final class YamlNpcStorage implements NpcStorage {
         section.set("location.yaw", (double) location.getYaw());
         section.set("location.pitch", (double) location.getPitch());
         section.set("view-radius", npc.getViewRadius());
+        section.set("name-visible", npc.isNameVisible());
         npc.getSkin().ifPresent(skin -> {
             section.set("skin.texture", skin.texture());
             section.set("skin.signature", skin.signature());

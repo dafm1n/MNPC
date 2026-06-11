@@ -23,6 +23,7 @@ import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundRotateHeadPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
+import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.world.entity.EntityType;
@@ -30,6 +31,9 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.scores.PlayerTeam;
+import net.minecraft.world.scores.Scoreboard;
+import net.minecraft.world.scores.Team;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
@@ -127,6 +131,9 @@ public final class PacketAdapterImpl implements PacketAdapter {
         send(viewer, infoPacket, addPacket, dataPacket,
                 rotateHeadPacket(npc.getEntityId(), location.getYaw()));
         sendEquipment(List.of(viewer), npc);
+        if (!npc.isNameVisible()) {
+            sendNameTagVisibility(List.of(viewer), npc, false);
+        }
     }
 
     @Override
@@ -139,6 +146,28 @@ public final class PacketAdapterImpl implements PacketAdapter {
         send(viewer,
                 new ClientboundRemoveEntitiesPacket(npc.getEntityId()),
                 new ClientboundPlayerInfoRemovePacket(List.of(npc.getId())));
+        if (!npc.isNameVisible()) {
+            // Remove the client-side hide-team so nothing leaks on the client.
+            sendNameTagVisibility(List.of(viewer), npc, true);
+        }
+    }
+
+    @Override
+    public void sendNameTagVisibility(Collection<Player> viewers, Npc npc, boolean visible) {
+        // A throwaway scoreboard scopes the team to these packets only; the
+        // real server scoreboard is never touched.
+        PlayerTeam team = new PlayerTeam(new Scoreboard(), "mnpc_" + npc.getEntityId());
+        Packet<?> packet;
+        if (visible) {
+            packet = ClientboundSetPlayerTeamPacket.createRemovePacket(team);
+        } else {
+            team.setNameTagVisibility(Team.Visibility.NEVER);
+            team.getPlayers().add(npc.getName());
+            packet = ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(team, true);
+        }
+        for (Player viewer : viewers) {
+            send(viewer, packet);
+        }
     }
 
     @Override

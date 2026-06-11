@@ -9,7 +9,11 @@ import com.meedix.mnpc.trait.FollowTrait;
 import com.meedix.mnpc.trait.HologramTrait;
 import com.meedix.mnpc.trait.LookAtPlayerTrait;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
@@ -28,7 +32,26 @@ public final class MnpcCommand implements org.bukkit.command.CommandExecutor, Ta
 
     private static final List<String> SUBCOMMANDS = List.of(
             "create", "remove", "skin", "tphere", "lookat", "anim", "equiphand",
-            "hologram", "follow", "unfollow", "list");
+            "hologram", "follow", "unfollow", "togglename", "list", "help");
+
+    /** Accent color used in the help screen (light violet). */
+    private static final TextColor ACCENT = TextColor.color(0x9D7AFF);
+    /** Help screen entries: {arguments, description}. */
+    private static final String[][] HELP = {
+            {"create <имя>", "создать НПС на твоей позиции"},
+            {"remove <имя>", "удалить НПС"},
+            {"skin <имя> <ник>", "применить скин аккаунта Minecraft"},
+            {"tphere <имя>", "телепортировать НПС к себе"},
+            {"lookat <имя>", "НПС посмотрит на тебя"},
+            {"anim <имя> <тип>", "проиграть анимацию (SWING_MAIN_ARM…)"},
+            {"equiphand <имя>", "дать НПС предмет из твоей руки"},
+            {"hologram <имя> <текст>", "голограмма над головой (| — перенос)"},
+            {"follow <имя>", "НПС следует за тобой"},
+            {"unfollow <имя>", "перестать следовать"},
+            {"togglename <имя>", "показать/скрыть имя над головой"},
+            {"list", "список всех НПС"},
+            {"help", "это меню"},
+    };
 
     private final MnpcPlugin plugin;
 
@@ -44,9 +67,8 @@ public final class MnpcCommand implements org.bukkit.command.CommandExecutor, Ta
             sender.sendMessage(Component.text("Players only.", NamedTextColor.RED));
             return true;
         }
-        if (args.length == 0) {
-            player.sendMessage(Component.text("/mnpc <" + String.join("|", SUBCOMMANDS) + ">",
-                    NamedTextColor.YELLOW));
+        if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
+            sendHelp(player, label);
             return true;
         }
         NpcManager manager = plugin.getNpcManager();
@@ -142,6 +164,14 @@ public final class MnpcCommand implements org.bukkit.command.CommandExecutor, Ta
                         NamedTextColor.GREEN));
             }
             case "unfollow" -> npc.removeTrait(FollowTrait.class);
+            case "togglename" -> {
+                boolean visible = !npc.isNameVisible();
+                npc.setNameVisible(visible);
+                player.sendMessage(Component.text(visible
+                                ? "Имя НПС " + npc.getName() + " снова видно."
+                                : "Имя НПС " + npc.getName() + " скрыто.",
+                        visible ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+            }
             default -> player.sendMessage(Component.text("Unknown subcommand.", NamedTextColor.RED));
         }
         return true;
@@ -161,6 +191,37 @@ public final class MnpcCommand implements org.bukkit.command.CommandExecutor, Ta
                     .toList();
         }
         return List.of();
+    }
+
+    /**
+     * Sends the formatted, clickable command overview. Every row inserts the
+     * command into the player's chat input on click.
+     *
+     * @param player the player to message
+     * @param label  the alias the command was executed with ({@code npc}/{@code mnpc})
+     */
+    private void sendHelp(Player player, String label) {
+        Component divider = Component.text("                                                  ",
+                NamedTextColor.DARK_GRAY, TextDecoration.STRIKETHROUGH);
+        player.sendMessage(divider);
+        player.sendMessage(Component.text("  ✦ ", ACCENT)
+                .append(Component.text("MNPC", ACCENT, TextDecoration.BOLD))
+                .append(Component.text("  команды НПС-движка", NamedTextColor.GRAY)));
+        player.sendMessage(Component.empty());
+        for (String[] entry : HELP) {
+            String base = "/" + label + " " + entry[0].split(" ")[0];
+            player.sendMessage(Component.text("  ▪ ", NamedTextColor.DARK_GRAY)
+                    .append(Component.text("/" + label + " ", ACCENT)
+                            .append(Component.text(entry[0], NamedTextColor.WHITE)))
+                    .append(Component.text(" — ", NamedTextColor.DARK_GRAY))
+                    .append(Component.text(entry[1], NamedTextColor.GRAY))
+                    .hoverEvent(HoverEvent.showText(
+                            Component.text("Нажми, чтобы вставить ", NamedTextColor.GRAY)
+                                    .append(Component.text(base, ACCENT))))
+                    .clickEvent(ClickEvent.suggestCommand(base + " ")));
+        }
+        player.sendMessage(Component.empty());
+        player.sendMessage(divider);
     }
 
     private boolean usage(Player player, String usage) {

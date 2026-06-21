@@ -1,6 +1,6 @@
 # MNPC
 
-Высокопроизводительный пакетный NPC-движок для **PaperMC 26.1.2** (Java 25, Mojang Mappings).
+Высокопроизводительный пакетный NPC-движок для **PaperMC 26.2** (Java 25, Mojang Mappings).
 Без Citizens, без ProtocolLib, без PacketEvents — только Paper API и NMS через один изолированный адаптер.
 
 ## Возможности
@@ -36,7 +36,7 @@ com.meedix.mnpc
 ├── nms/
 │   ├── PacketAdapter           — ЕДИНСТВЕННАЯ NMS-поверхность проекта
 │   ├── PacketAdapterFactory    — выбор реализации по версии сервера
-│   └── v26_1_2/PacketAdapterImpl — все пакеты для 26.1.2
+│   └── v26_2/PacketAdapterImpl — все пакеты для 26.2
 ├── listener/                   — PlayerConnectionListener, NpcInteractListener
 ├── skin/SkinService            — асинхронный Mojang API + кэш
 ├── storage/                    — NpcStorage, YamlNpcStorage, TraitRegistry
@@ -51,16 +51,16 @@ CI: GitHub Actions собирает проект на каждый push/PR и п
 NMS-jar Paper не публикуется в публичных Maven-репозиториях, поэтому один раз установите его локально:
 
 ```bash
-# 1. Скачайте Paper 26.1.2 (build 69) и распакуйте mojang-mapped сервер
-java -Dpaperclip.patchonly=true -jar paper-26.1.2-69.jar
+# 1. Скачайте Paper 26.2 (build 27) и распакуйте mojang-mapped сервер
+java -Dpaperclip.patchonly=true -jar paper-26.2-27.jar
 
 # 2. Установите server jar и библиотеки Mojang в локальный репозиторий
-mvn install:install-file -Dfile=versions/26.1.2/paper-26.1.2.jar \
-    -DgroupId=io.papermc.paper -DartifactId=paper-server-mojang -Dversion=26.1.2 -Dpackaging=jar
-mvn install:install-file -Dfile=libraries/com/mojang/authlib/7.0.63/authlib-7.0.63.jar \
-    -DgroupId=com.mojang -DartifactId=authlib -Dversion=7.0.63 -Dpackaging=jar
-mvn install:install-file -Dfile=libraries/com/mojang/datafixerupper/9.0.19/datafixerupper-9.0.19.jar \
-    -DgroupId=com.mojang -DartifactId=datafixerupper -Dversion=9.0.19 -Dpackaging=jar
+mvn install:install-file -Dfile=versions/26.2/paper-26.2.jar \
+    -DgroupId=io.papermc.paper -DartifactId=paper-server-mojang -Dversion=26.2 -Dpackaging=jar
+mvn install:install-file -Dfile=libraries/com/mojang/authlib/9.0.75/authlib-9.0.75.jar \
+    -DgroupId=com.mojang -DartifactId=authlib -Dversion=9.0.75 -Dpackaging=jar
+mvn install:install-file -Dfile=libraries/com/mojang/datafixerupper/10.0.21/datafixerupper-10.0.21.jar \
+    -DgroupId=com.mojang -DartifactId=datafixerupper -Dversion=10.0.21 -Dpackaging=jar
 
 # 3. Сборка
 mvn package        # → target/MNPC-1.0.0.jar
@@ -128,6 +128,6 @@ npcManager.removeNpc(npc);
 
 ## Поддержка новых версий
 
-Вся работа с NMS изолирована в `nms/v26_1_2/PacketAdapterImpl` (~300 строк).
+Вся работа с NMS изолирована в `nms/v26_2/PacketAdapterImpl` (~300 строк).
 Для новой версии Minecraft реализуйте `PacketAdapter` в новом пакете и добавьте
 ветку в `PacketAdapterFactory`.

@@ -1,4 +1,4 @@
-package com.meedix.mnpc.nms.v26_1_2;
+package com.meedix.mnpc.nms.v26_2;
 
 import com.meedix.mnpc.api.Npc;
 import com.meedix.mnpc.api.NpcAnimation;
@@ -27,6 +27,7 @@ import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.level.GameType;
@@ -50,7 +51,7 @@ import java.util.UUID;
 import com.meedix.mnpc.nms.PacketAdapter;
 
 /**
- * {@link PacketAdapter} implementation for Minecraft 26.1.2 (Mojang mappings,
+ * {@link PacketAdapter} implementation for Minecraft 26.2 (Mojang mappings,
  * Paper). All packets are written directly to the player's
  * {@link net.minecraft.network.Connection} obtained from
  * {@link net.minecraft.server.network.ServerGamePacketListenerImpl}.
@@ -77,11 +78,11 @@ public final class PacketAdapterImpl implements PacketAdapter {
             net.minecraft.world.entity.Avatar.DATA_PLAYER_MODE_CUSTOMISATION.id();
     /** All skin layers enabled (cape, jacket, sleeves, pants, hat). */
     private static final byte SKIN_PARTS_ALL = 0x7F;
-    /** SynchedEntityData index of the display entity billboard byte (26.1.2, verified). */
+    /** SynchedEntityData index of the display entity billboard byte (26.2, verified). */
     private static final int DATA_DISPLAY_BILLBOARD = 15;
     /** Billboard constraint CENTER: the display always faces the viewer. */
     private static final byte BILLBOARD_CENTER = 3;
-    /** SynchedEntityData index of the text display text component (26.1.2, verified). */
+    /** SynchedEntityData index of the text display text component (26.2, verified). */
     private static final int DATA_TEXT_DISPLAY_TEXT = 23;
 
     /** ClientboundAnimatePacket action: swing main arm. */
@@ -95,8 +96,12 @@ public final class PacketAdapterImpl implements PacketAdapter {
 
     @Override
     public int nextEntityId() {
-        // NMS allocator (atomic counter) — avoids the deprecated Bukkit.getUnsafe().
-        return net.minecraft.world.entity.Entity.nextEntityId();
+        // 26.2: the static Entity.nextEntityId() allocator was removed; the counter now
+        // lives on the level (ServerLevel#getNextEntityId). Entity ids are effectively
+        // global, so allocating from the first loaded world is sufficient for the
+        // client-side packet entities used here.
+        return ((org.bukkit.craftbukkit.CraftWorld) org.bukkit.Bukkit.getWorlds().get(0))
+                .getHandle().getNextEntityId();
     }
 
     @Override
@@ -121,7 +126,7 @@ public final class PacketAdapterImpl implements PacketAdapter {
                 npc.getEntityId(), npc.getId(),
                 location.getX(), location.getY(), location.getZ(),
                 location.getPitch(), location.getYaw(),
-                EntityType.PLAYER, 0, Vec3.ZERO, location.getYaw());
+                EntityTypes.PLAYER, 0, Vec3.ZERO, location.getYaw());
 
         ClientboundSetEntityDataPacket dataPacket = new ClientboundSetEntityDataPacket(
                 npc.getEntityId(),
@@ -224,7 +229,7 @@ public final class PacketAdapterImpl implements PacketAdapter {
         ClientboundAddEntityPacket addPacket = new ClientboundAddEntityPacket(
                 entityId, uuid,
                 location.getX(), location.getY(), location.getZ(),
-                0.0F, 0.0F, EntityType.TEXT_DISPLAY, 0, Vec3.ZERO, 0.0);
+                0.0F, 0.0F, EntityTypes.TEXT_DISPLAY, 0, Vec3.ZERO, 0.0);
         send(viewer, addPacket, textDisplayDataPacket(entityId, text));
     }
 

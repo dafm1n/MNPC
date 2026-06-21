@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MNPC — a high-performance, packet-based NPC engine for Paper 26.1.2.
+ * MNPC — a high-performance, packet-based NPC engine for Paper 26.2.
  *
  * <p>Wires the engine together: packet adapter, registry, visibility,
  * central tick manager, skin service, YAML storage, listeners and the

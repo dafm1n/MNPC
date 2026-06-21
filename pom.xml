@@ -15,14 +15,14 @@
     <packaging>jar</packaging>
 
     <name>MNPC</name>
-    <description>High-performance packet-based NPC engine for PaperMC 26.1.2 (Mojang mappings, zero external NPC libraries).</description>
+    <description>High-performance packet-based NPC engine for PaperMC 26.2 (Mojang mappings, zero external NPC libraries).</description>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>25</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <paper.version>26.1.2.build.69-stable</paper.version>
-        <!-- paper-api 26.1.2 requires Adventure 4.26.x -->
-        <adventure.version>4.26.1</adventure.version>
+        <paper.version>26.2.build.27-alpha</paper.version>
+        <!-- Paper 26.2 ships Adventure 5.x; override the parent's 4.x depMgmt pin. -->
+        <adventure.version>5.1.1</adventure.version>
     </properties>
 
     <dependencies>
@@ -37,40 +37,40 @@
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-server-mojang</artifactId>
-            <version>26.1.2</version>
+            <version>26.2</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.mojang</groupId>
             <artifactId>authlib</artifactId>
-            <version>7.0.63</version>
+            <version>9.0.75</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.mojang</groupId>
             <artifactId>datafixerupper</artifactId>
-            <version>9.0.19</version>
+            <version>10.0.21</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-buffer</artifactId>
-            <version>4.2.7.Final</version>
+            <version>4.2.15.Final</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport</artifactId>
-            <version>4.2.7.Final</version>
+            <version>4.2.15.Final</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
-            <version>2.11.0</version>
+            <version>2.14.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
@@ -87,6 +87,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
                 <configuration>
                     <release>${java.version}</release>
                 </configuration>

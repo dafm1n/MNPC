@@ -1,6 +1,6 @@
 package com.meedix.mnpc.nms;
 
-import com.meedix.mnpc.nms.v26_1_2.PacketAdapterImpl;
+import com.meedix.mnpc.nms.v26_2.PacketAdapterImpl;
 import org.bukkit.Bukkit;
 
 /**
@@ -18,10 +18,10 @@ public final class PacketAdapterFactory {
      */
     public static PacketAdapter create() {
         String minecraftVersion = Bukkit.getMinecraftVersion();
-        if (minecraftVersion.equals("26.1.2")) {
+        if (minecraftVersion.equals("26.2")) {
             return new PacketAdapterImpl();
         }
         throw new IllegalStateException(
-                "MNPC does not support Minecraft " + minecraftVersion + " (supported: 26.1.2)");
+                "MNPC does not support Minecraft " + minecraftVersion + " (supported: 26.2)");
     }
 }

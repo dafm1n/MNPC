@@ -1,9 +1,9 @@
 name: MNPC
 version: '${project.version}'
 main: com.meedix.mnpc.MnpcPlugin
-api-version: '26.1'
+api-version: '26.2'
 author: Meedix
-description: High-performance packet-based NPC engine for Paper 26.1.2.
+description: High-performance packet-based NPC engine for Paper 26.2.
 commands:
   mnpc:
     description: Manage MNPC NPCs.

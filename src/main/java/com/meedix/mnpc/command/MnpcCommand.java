@@ -5,6 +5,7 @@ import com.meedix.mnpc.api.Npc;
 import com.meedix.mnpc.api.NpcAnimation;
 import com.meedix.mnpc.api.NpcEquipmentSlot;
 import com.meedix.mnpc.api.NpcManager;
+import com.meedix.mnpc.trait.CommandTrait;
 import com.meedix.mnpc.trait.FollowTrait;
 import com.meedix.mnpc.trait.HologramTrait;
 import com.meedix.mnpc.trait.LookAtPlayerTrait;
@@ -32,7 +33,7 @@ public final class MnpcCommand implements org.bukkit.command.CommandExecutor, Ta
 
     private static final List<String> SUBCOMMANDS = List.of(
             "create", "remove", "skin", "tphere", "lookat", "anim", "equiphand",
-            "hologram", "follow", "unfollow", "togglename", "list", "help");
+            "hologram", "command", "follow", "unfollow", "togglename", "list", "help");
 
     /** Accent color used in the help screen (light violet). */
     private static final TextColor ACCENT = TextColor.color(0x9D7AFF);
@@ -46,6 +47,7 @@ public final class MnpcCommand implements org.bukkit.command.CommandExecutor, Ta
             {"anim <имя> <тип>", "проиграть анимацию (SWING_MAIN_ARM…)"},
             {"equiphand <имя>", "дать НПС предмет из твоей руки"},
             {"hologram <имя> <текст>", "голограмма над головой (| — перенос)"},
+            {"command <имя> <команда>", "команда по клику (от имени игрока, пусто — убрать)"},
             {"follow <имя>", "НПС следует за тобой"},
             {"unfollow <имя>", "перестать следовать"},
             {"togglename <имя>", "показать/скрыть имя над головой"},
@@ -152,6 +154,24 @@ public final class MnpcCommand implements org.bukkit.command.CommandExecutor, Ta
                 if (npc.getTrait(LookAtPlayerTrait.class).isEmpty()) {
                     npc.addTrait(new LookAtPlayerTrait());
                 }
+            }
+            case "command" -> {
+                if (args.length < 3) {
+                    boolean removed = npc.removeTrait(CommandTrait.class);
+                    player.sendMessage(Component.text(removed
+                                    ? "Команда снята с НПС " + npc.getName() + "."
+                                    : "Использование: /mnpc command <имя> <команда> (без аргументов — убрать)",
+                            removed ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+                    return true;
+                }
+                String cmd = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
+                npc.getTrait(CommandTrait.class).ifPresentOrElse(
+                        trait -> trait.setCommand(cmd),
+                        () -> npc.addTrait(new CommandTrait(cmd)));
+                player.sendMessage(Component.text("НПС " + npc.getName()
+                                + " теперь выполняет по клику: /"
+                                + (cmd.startsWith("/") ? cmd.substring(1) : cmd),
+                        NamedTextColor.GREEN));
             }
             case "follow" -> {
                 FollowTrait trait = npc.getTrait(FollowTrait.class).orElseGet(() -> {

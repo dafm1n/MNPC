@@ -23,16 +23,32 @@ import java.util.UUID;
 import java.util.logging.Level;
 
 /**
- * YAML persistence in {@code plugins/MNPC/npcs.yml}. Items are stored via
- * Bukkit's native ItemStack serialization, traits via {@link TraitRegistry}.
+ * YAML persistence split across two files:
+ *
+ * <ul>
+ *   <li>{@code plugins/MNPC/npc.yml} — the NPCs themselves (location, skin,
+ *       equipment and all traits except holograms);</li>
+ *   <li>{@code plugins/MNPC/holograms.yml} — hologram lines, keyed by NPC
+ *       name with a {@code line} list, so server owners can edit hologram
+ *       text without touching NPC data.</li>
+ * </ul>
+ *
+ * <p>Items are stored via Bukkit's native ItemStack serialization, traits via
+ * {@link TraitRegistry}. A legacy {@code npcs.yml} is migrated to
+ * {@code npc.yml} automatically on first load.</p>
  */
 public final class YamlNpcStorage implements NpcStorage {
 
-    private static final String FILE_NAME = "npcs.yml";
+    private static final String FILE_NAME = "npc.yml";
+    private static final String LEGACY_FILE_NAME = "npcs.yml";
+    private static final String HOLOGRAMS_FILE_NAME = "holograms.yml";
+    /** Key of the hologram lines list inside holograms.yml. */
+    private static final String LINE_KEY = "line";
 
     private final Plugin plugin;
     private final TraitRegistry traitRegistry;
     private final File file;
+    private final File hologramsFile;
 
     /**
      * @param plugin        owning plugin (data folder + logger)
@@ -42,6 +58,8 @@ public final class YamlNpcStorage implements NpcStorage {
         this.plugin = plugin;
         this.traitRegistry = traitRegistry;
         this.file = new File(plugin.getDataFolder(), FILE_NAME);
+        this.hologramsFile = new File(plugin.getDataFolder(), HOLOGRAMS_FILE_NAME);
+        migrateLegacyFile();
     }
 
     @Override
@@ -50,6 +68,9 @@ public final class YamlNpcStorage implements NpcStorage {
             return 0;
         }
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+        YamlConfiguration holograms = hologramsFile.exists()
+                ? YamlConfiguration.loadConfiguration(hologramsFile)
+                : new YamlConfiguration();
         int loaded = 0;
         for (String key : yaml.getKeys(false)) {
             ConfigurationSection section = yaml.getConfigurationSection(key);
@@ -57,7 +78,7 @@ public final class YamlNpcStorage implements NpcStorage {
                 continue;
             }
             try {
-                loadNpc(manager, key, section);
+                loadNpc(manager, key, section, holograms);
                 loaded++;
             } catch (Exception exception) {
                 plugin.getLogger().log(Level.WARNING, "Could not load NPC " + key, exception);
@@ -69,20 +90,38 @@ public final class YamlNpcStorage implements NpcStorage {
     @Override
     public void save(java.util.Collection<Npc> npcs) {
         YamlConfiguration yaml = new YamlConfiguration();
+        YamlConfiguration holograms = new YamlConfiguration();
         for (Npc npc : npcs) {
             writeNpc(yaml.createSection(npc.getId().toString()), npc);
+            npc.getTrait(HologramTrait.class).ifPresent(trait ->
+                    holograms.set(npc.getName() + "." + LINE_KEY, trait.getLines()));
         }
         try {
             if (!plugin.getDataFolder().exists() && !plugin.getDataFolder().mkdirs()) {
                 throw new IOException("Could not create " + plugin.getDataFolder());
             }
             yaml.save(file);
+            holograms.save(hologramsFile);
         } catch (IOException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not save " + FILE_NAME, exception);
+            plugin.getLogger().log(Level.SEVERE, "Could not save NPC storage", exception);
         }
     }
 
-    private void loadNpc(NpcManagerImpl manager, String key, ConfigurationSection section) {
+    /** Renames a legacy {@code npcs.yml} to {@code npc.yml} once. */
+    private void migrateLegacyFile() {
+        File legacy = new File(plugin.getDataFolder(), LEGACY_FILE_NAME);
+        if (!file.exists() && legacy.exists()) {
+            if (legacy.renameTo(file)) {
+                plugin.getLogger().info("Migrated " + LEGACY_FILE_NAME + " to " + FILE_NAME);
+            } else {
+                plugin.getLogger().warning("Could not migrate " + LEGACY_FILE_NAME
+                        + " to " + FILE_NAME + "; loading will be skipped");
+            }
+        }
+    }
+
+    private void loadNpc(NpcManagerImpl manager, String key, ConfigurationSection section,
+                         YamlConfiguration holograms) {
         String worldName = section.getString("location.world", "");
         World world = Bukkit.getWorld(worldName);
         if (world == null) {
@@ -128,16 +167,20 @@ public final class YamlNpcStorage implements NpcStorage {
             }
         }
 
-        // Auto-add hologram for Vanilla NPCs that don't have one yet (upgrade path)
-        if (npc.getName().equalsIgnoreCase("Vanilla") && npc.getTrait(HologramTrait.class).isEmpty()) {
-            npc.addTrait(new HologramTrait(List.of(
-                    "&f &f &f &f &#D3FFA9ᴠ&#D0FFA5ᴀ&#CCFFA1ɴ&#C9FF9Dɪ&#C5FF99ʟ&#C2FF95ʟ&#BEFF91ᴀ &#61E25F⏻ &f &f &f &f",
-                    "&#FFE4E4&m        ",
-                    "&#E6FFC6Версия: &#CEFF8F26.1.2",
-                    "&#E6FFC6     Онлайн: &#CEFF8F%bungee_vanilla%/150     ",
-                    "&#FCD05C→ жми ←",
-                    "&f")));
+        loadHologram(npc, holograms);
+    }
+
+    /** Attaches the hologram stored in holograms.yml, if any. */
+    private void loadHologram(Npc npc, YamlConfiguration holograms) {
+        List<String> lines = holograms.getStringList(npc.getName() + "." + LINE_KEY);
+        if (lines.isEmpty()) {
+            // Legacy path: holograms previously lived inside the NPC's traits
+            // section, in which case the trait is already attached.
+            return;
         }
+        npc.getTrait(HologramTrait.class).ifPresentOrElse(
+                trait -> trait.setLines(lines),
+                () -> npc.addTrait(new HologramTrait(lines)));
     }
 
     private void writeNpc(ConfigurationSection section, Npc npc) {
@@ -159,6 +202,9 @@ public final class YamlNpcStorage implements NpcStorage {
             section.set("equipment." + entry.getKey().name(), entry.getValue());
         }
         for (Trait trait : npc.getTraits()) {
+            if (trait instanceof HologramTrait) {
+                continue; // hologram lines live in holograms.yml
+            }
             traitRegistry.byTrait(trait).ifPresent(factory -> {
                 Map<String, Object> data = factory.serialize(trait);
                 section.set("traits." + factory.id(), new HashMap<>(data));

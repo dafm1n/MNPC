@@ -12,8 +12,10 @@ import io.netty.buffer.Unpooled;
 import io.papermc.paper.adventure.PaperAdventure;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
+import net.minecraft.network.protocol.game.ClientboundBundlePacket;
 import net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket;
 import net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
@@ -46,7 +48,9 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.meedix.mnpc.nms.PacketAdapter;
 
@@ -133,12 +137,21 @@ public final class PacketAdapterImpl implements PacketAdapter {
                 List.of(new SynchedEntityData.DataValue<>(
                         DATA_PLAYER_SKIN_PARTS, EntityDataSerializers.BYTE, SKIN_PARTS_ALL)));
 
-        send(viewer, infoPacket, addPacket, dataPacket,
-                rotateHeadPacket(npc.getEntityId(), location.getYaw()));
-        sendEquipment(List.of(viewer), npc);
-        if (!npc.isNameVisible()) {
-            sendNameTagVisibility(List.of(viewer), npc, false);
+        // Bundle the whole spawn sequence: one netty write / syscall per
+        // viewer and the client applies everything atomically in one tick
+        // (no one-frame "skinless" or unequipped NPC flicker).
+        List<Packet<? super ClientGamePacketListener>> bundle = new ArrayList<>(6);
+        bundle.add(infoPacket);
+        bundle.add(addPacket);
+        bundle.add(dataPacket);
+        bundle.add(rotateHeadPacket(npc.getEntityId(), location.getYaw()));
+        if (!npc.getEquipment().isEmpty()) {
+            bundle.add(equipmentPacket(npc));
         }
+        if (!npc.isNameVisible()) {
+            bundle.add(nameTagVisibilityPacket(npc, false));
+        }
+        send(viewer, new ClientboundBundlePacket(bundle));
     }
 
     @Override
@@ -148,31 +161,34 @@ public final class PacketAdapterImpl implements PacketAdapter {
 
     @Override
     public void despawnNpc(Player viewer, Npc npc) {
-        send(viewer,
-                new ClientboundRemoveEntitiesPacket(npc.getEntityId()),
-                new ClientboundPlayerInfoRemovePacket(List.of(npc.getId())));
+        List<Packet<? super ClientGamePacketListener>> bundle = new ArrayList<>(3);
+        bundle.add(new ClientboundRemoveEntitiesPacket(npc.getEntityId()));
+        bundle.add(new ClientboundPlayerInfoRemovePacket(List.of(npc.getId())));
         if (!npc.isNameVisible()) {
             // Remove the client-side hide-team so nothing leaks on the client.
-            sendNameTagVisibility(List.of(viewer), npc, true);
+            bundle.add(nameTagVisibilityPacket(npc, true));
         }
+        send(viewer, new ClientboundBundlePacket(bundle));
     }
 
     @Override
     public void sendNameTagVisibility(Collection<Player> viewers, Npc npc, boolean visible) {
-        // A throwaway scoreboard scopes the team to these packets only; the
-        // real server scoreboard is never touched.
+        broadcast(viewers, nameTagVisibilityPacket(npc, visible));
+    }
+
+    /**
+     * Builds the client-side scoreboard team packet showing or hiding the
+     * NPC's name tag. A throwaway scoreboard scopes the team to this packet
+     * only; the real server scoreboard is never touched.
+     */
+    private ClientboundSetPlayerTeamPacket nameTagVisibilityPacket(Npc npc, boolean visible) {
         PlayerTeam team = new PlayerTeam(new Scoreboard(), "mnpc_" + npc.getEntityId());
-        Packet<?> packet;
         if (visible) {
-            packet = ClientboundSetPlayerTeamPacket.createRemovePacket(team);
-        } else {
-            team.setNameTagVisibility(Team.Visibility.NEVER);
-            team.getPlayers().add(npc.getName());
-            packet = ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(team, true);
+            return ClientboundSetPlayerTeamPacket.createRemovePacket(team);
         }
-        for (Player viewer : viewers) {
-            send(viewer, packet);
-        }
+        team.setNameTagVisibility(Team.Visibility.NEVER);
+        team.getPlayers().add(npc.getName());
+        return ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(team, true);
     }
 
     @Override
@@ -184,16 +200,19 @@ public final class PacketAdapterImpl implements PacketAdapter {
                         new Vec3(location.getX(), location.getY(), location.getZ()),
                         Vec3.ZERO, location.getYaw(), location.getPitch()),
                 true);
-        broadcast(viewers, syncPacket);
-        broadcast(viewers, rotateHeadPacket(npc.getEntityId(), location.getYaw()));
+        // One bundle per viewer: position and head rotation arrive atomically.
+        broadcast(viewers, new ClientboundBundlePacket(List.of(
+                syncPacket, rotateHeadPacket(npc.getEntityId(), location.getYaw()))));
     }
 
     @Override
     public void sendRotation(Collection<Player> viewers, Npc npc, float yaw, float pitch) {
         byte yawByte = toAngleByte(yaw);
         byte pitchByte = toAngleByte(pitch);
-        broadcast(viewers, new ClientboundMoveEntityPacket.Rot(npc.getEntityId(), yawByte, pitchByte, true));
-        broadcast(viewers, rotateHeadPacket(npc.getEntityId(), yaw));
+        // One bundle per viewer: body and head rotation arrive atomically.
+        broadcast(viewers, new ClientboundBundlePacket(List.of(
+                new ClientboundMoveEntityPacket.Rot(npc.getEntityId(), yawByte, pitchByte, true),
+                rotateHeadPacket(npc.getEntityId(), yaw))));
     }
 
     @Override
@@ -210,6 +229,11 @@ public final class PacketAdapterImpl implements PacketAdapter {
 
     @Override
     public void sendEquipment(Collection<Player> viewers, Npc npc) {
+        broadcast(viewers, equipmentPacket(npc));
+    }
+
+    /** Builds the full six-slot equipment packet (empty slots clear the client). */
+    private ClientboundSetEquipmentPacket equipmentPacket(Npc npc) {
         Map<NpcEquipmentSlot, ItemStack> equipment = npc.getEquipment();
         List<com.mojang.datafixers.util.Pair<EquipmentSlot, net.minecraft.world.item.ItemStack>> slots =
                 new ArrayList<>(NpcEquipmentSlot.values().length);
@@ -220,7 +244,7 @@ public final class PacketAdapterImpl implements PacketAdapter {
                     : CraftItemStack.asNMSCopy(item);
             slots.add(com.mojang.datafixers.util.Pair.of(toNmsSlot(slot), nmsItem));
         }
-        broadcast(viewers, new ClientboundSetEquipmentPacket(npc.getEntityId(), slots));
+        return new ClientboundSetEquipmentPacket(npc.getEntityId(), slots);
     }
 
     @Override
@@ -254,20 +278,38 @@ public final class PacketAdapterImpl implements PacketAdapter {
         broadcast(viewers, new ClientboundRemoveEntitiesPacket(entityId));
     }
 
+    /** Cached, immutable profile snapshot keyed by NPC id. */
+    private record CachedProfile(String name, Skin skin, GameProfile profile) {
+    }
+
+    /** GameProfile cache: building the PropertyMap on every spawn is wasteful. */
+    private final Map<UUID, CachedProfile> profileCache = new ConcurrentHashMap<>();
+
     /**
-     * Builds the NPC's {@link GameProfile} including its skin texture
-     * property when present.
+     * Builds (or reuses) the NPC's {@link GameProfile} including its skin
+     * texture property when present. Profiles are immutable, so the same
+     * instance is safely shared across viewers and rebuilt only when the
+     * NPC's name or skin actually changes.
      */
     private GameProfile buildProfile(Npc npc) {
         Skin skin = npc.getSkin().orElse(null);
-        if (skin == null) {
-            return new GameProfile(npc.getId(), npc.getName());
+        CachedProfile cached = profileCache.get(npc.getId());
+        if (cached != null && cached.name().equals(npc.getName())
+                && Objects.equals(cached.skin(), skin)) {
+            return cached.profile();
         }
-        // GameProfile is a record in authlib 7.x: properties are supplied
-        // through the constructor instead of being mutated afterwards.
-        PropertyMap properties = new PropertyMap(ImmutableMultimap.of("textures",
-                new Property("textures", skin.texture(), skin.signature())));
-        return new GameProfile(npc.getId(), npc.getName(), properties);
+        GameProfile profile;
+        if (skin == null) {
+            profile = new GameProfile(npc.getId(), npc.getName());
+        } else {
+            // GameProfile is a record in authlib 7.x: properties are supplied
+            // through the constructor instead of being mutated afterwards.
+            PropertyMap properties = new PropertyMap(ImmutableMultimap.of("textures",
+                    new Property("textures", skin.texture(), skin.signature())));
+            profile = new GameProfile(npc.getId(), npc.getName(), properties);
+        }
+        profileCache.put(npc.getId(), new CachedProfile(npc.getName(), skin, profile));
+        return profile;
     }
 
     /** Builds the entity-data packet carrying billboard mode and text. */

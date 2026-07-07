@@ -132,4 +132,14 @@ public interface PacketAdapter {
      * @param entityId packet entity id
      */
     void removeEntity(Collection<Player> viewers, int entityId);
+
+    /**
+     * Updates a single byte-valued entity data value (metadata entry).
+     *
+     * @param viewers  the receiving players
+     * @param entityId packet entity id of the entity whose data is changed
+     * @param index    the synched-data index (e.g. 0 for shared flags)
+     * @param value    the new byte value
+     */
+    void sendEntityMetadata(Collection<Player> viewers, int entityId, int index, byte value);
 }

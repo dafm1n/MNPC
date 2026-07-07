@@ -254,6 +254,12 @@ public final class PacketAdapterImpl implements PacketAdapter {
         broadcast(viewers, new ClientboundRemoveEntitiesPacket(entityId));
     }
 
+    @Override
+    public void sendEntityMetadata(Collection<Player> viewers, int entityId, int index, byte value) {
+        broadcast(viewers, new ClientboundSetEntityDataPacket(entityId,
+                List.of(new SynchedEntityData.DataValue<>(index, EntityDataSerializers.BYTE, value))));
+    }
+
     /**
      * Builds the NPC's {@link GameProfile} including its skin texture
      * property when present.

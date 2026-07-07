@@ -26,6 +26,8 @@ public final class HologramTrait extends Trait {
 
     private List<String> lines;
     private Location lastLocation;
+    /** Cached rendered component; rebuilt only when {@link #lines} change. */
+    private Component renderedText;
 
     /**
      * Convenience constructor resolving the packet adapter from the running
@@ -53,12 +55,18 @@ public final class HologramTrait extends Trait {
     }
 
     /**
-     * Replaces the hologram text for all viewers.
+     * Replaces the hologram text for all viewers. No packets are sent when
+     * the new lines equal the current ones.
      *
      * @param lines the new lines
      */
     public void setLines(List<String> lines) {
-        this.lines = List.copyOf(lines);
+        List<String> copy = List.copyOf(lines);
+        if (copy.equals(this.lines)) {
+            return; // no change — skip re-render and packet dispatch
+        }
+        this.lines = copy;
+        this.renderedText = null;
         adapter.updateTextDisplay(getNpc().getViewers(), displayEntityId, renderText());
     }
 
@@ -96,6 +104,10 @@ public final class HologramTrait extends Trait {
     }
 
     private Component renderText() {
+        Component cached = renderedText;
+        if (cached != null) {
+            return cached; // legacy deserialization is not free — do it once per change
+        }
         Component text = Component.empty();
         for (int i = 0; i < lines.size(); i++) {
             if (i > 0) {
@@ -104,6 +116,7 @@ public final class HologramTrait extends Trait {
             text = text.append(LegacyComponentSerializer.legacyAmpersand()
                     .deserialize(lines.get(i).replace('§', '&')));
         }
+        renderedText = text;
         return text;
     }
 }

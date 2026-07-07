@@ -46,6 +46,13 @@ public final class NpcImpl implements Npc {
     private final Map<NpcEquipmentSlot, ItemStack> equipment = new EnumMap<>(NpcEquipmentSlot.class);
     private final List<Trait> traits = new CopyOnWriteArrayList<>();
     private final Set<Player> viewers = ConcurrentHashMap.newKeySet();
+    /**
+     * Last per-viewer look rotation sent by {@link #lookAtFor(Player)},
+     * packed as {@code yawByte << 8 | pitchByte} at protocol (1/256 turn)
+     * precision. Skips redundant rotation packets for idle viewers —
+     * {@code LookAtPlayerTrait} calls this every other tick per viewer.
+     */
+    private final Map<UUID, Integer> lastLookRotation = new ConcurrentHashMap<>();
 
     /**
      * @param id         storage id
@@ -129,14 +136,18 @@ public final class NpcImpl implements Npc {
     @Override
     public void setEquipment(NpcEquipmentSlot slot, ItemStack item) {
         Objects.requireNonNull(slot, "slot");
+        boolean changed;
         synchronized (equipment) {
             if (item == null || item.getType().isAir()) {
-                equipment.remove(slot);
+                changed = equipment.remove(slot) != null;
             } else {
-                equipment.put(slot, item.clone());
+                ItemStack previous = equipment.put(slot, item.clone());
+                changed = previous == null || !previous.equals(item);
             }
         }
-        adapter.sendEquipment(viewers, this);
+        if (changed && !viewers.isEmpty()) {
+            adapter.sendEquipment(viewers, this);
+        }
     }
 
     @Override
@@ -148,6 +159,10 @@ public final class NpcImpl implements Npc {
 
     @Override
     public void setRotation(float yaw, float pitch) {
+        // Skip the packet entirely when the rotation is unchanged.
+        if (location.getYaw() == yaw && location.getPitch() == pitch) {
+            return;
+        }
         location.setYaw(yaw);
         location.setPitch(pitch);
         adapter.sendRotation(viewers, this, yaw, pitch);
@@ -162,10 +177,23 @@ public final class NpcImpl implements Npc {
     @Override
     public void lookAtFor(Player viewer) {
         if (!viewers.contains(viewer)) {
+            lastLookRotation.remove(viewer.getUniqueId());
             return;
         }
         float[] rotation = rotationTowards(viewer);
+        int packed = packRotation(rotation[0], rotation[1]);
+        Integer previous = lastLookRotation.put(viewer.getUniqueId(), packed);
+        if (previous != null && previous == packed) {
+            return; // viewer has not moved enough to change the visible angle
+        }
         adapter.sendRotation(List.of(viewer), this, rotation[0], rotation[1]);
+    }
+
+    /** Packs yaw/pitch into an int at protocol angle-byte precision. */
+    private static int packRotation(float yaw, float pitch) {
+        int yawByte = (int) Math.floor(yaw * 256.0F / 360.0F) & 0xFF;
+        int pitchByte = (int) Math.floor(pitch * 256.0F / 360.0F) & 0xFF;
+        return (yawByte << 8) | pitchByte;
     }
 
     @Override
@@ -280,6 +308,7 @@ public final class NpcImpl implements Npc {
             trait.onRemove();
         }
         traits.clear();
+        lastLookRotation.clear();
     }
 
     /** Despawns and respawns the NPC for all current viewers (profile changes). */

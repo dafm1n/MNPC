@@ -7,6 +7,7 @@ import com.meedix.mnpc.core.NpcManagerImpl;
 import com.meedix.mnpc.core.NpcRegistry;
 import com.meedix.mnpc.core.tick.NpcTickManager;
 import com.meedix.mnpc.core.visibility.VisibilityService;
+import com.meedix.mnpc.listener.NpcCommandListener;
 import com.meedix.mnpc.listener.NpcInteractListener;
 import com.meedix.mnpc.listener.PlayerConnectionListener;
 import com.meedix.mnpc.nms.PacketAdapter;
@@ -14,6 +15,7 @@ import com.meedix.mnpc.nms.PacketAdapterFactory;
 import com.meedix.mnpc.skin.SkinService;
 import com.meedix.mnpc.storage.TraitRegistry;
 import com.meedix.mnpc.storage.YamlNpcStorage;
+import com.meedix.mnpc.trait.CommandTrait;
 import com.meedix.mnpc.trait.FollowTrait;
 import com.meedix.mnpc.trait.HologramTrait;
 import com.meedix.mnpc.trait.LookAtPlayerTrait;
@@ -62,7 +64,7 @@ public final class MnpcPlugin extends JavaPlugin {
                 getConfig().getDouble("view-radius", 48.0));
 
         int loaded = storage.load(npcManager);
-        getLogger().info("Loaded " + loaded + " NPC(s) from npcs.yml");
+        getLogger().info("Loaded " + loaded + " NPC(s) from npc.yml");
 
         tickManager = new NpcTickManager(this, registry, visibility);
         tickManager.start();
@@ -71,6 +73,7 @@ public final class MnpcPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(interactListener, this);
         Bukkit.getPluginManager().registerEvents(
                 new PlayerConnectionListener(registry, visibility), this);
+        Bukkit.getPluginManager().registerEvents(new NpcCommandListener(), this);
 
         MnpcCommand command = new MnpcCommand(this);
         getCommand("mnpc").setExecutor(command);
@@ -161,6 +164,24 @@ public final class MnpcPlugin extends JavaPlugin {
 
             @Override public Map<String, Object> serialize(Trait trait) {
                 return Map.of("lines", ((HologramTrait) trait).getLines());
+            }
+        });
+
+        traitRegistry.register(new TraitRegistry.TraitFactory() {
+            @Override public String id() {
+                return "command";
+            }
+
+            @Override public Class<? extends Trait> type() {
+                return CommandTrait.class;
+            }
+
+            @Override public Trait create(Map<String, Object> data) {
+                return new CommandTrait(String.valueOf(data.getOrDefault("command", "help")));
+            }
+
+            @Override public Map<String, Object> serialize(Trait trait) {
+                return Map.of("command", ((CommandTrait) trait).getCommand());
             }
         });
 
